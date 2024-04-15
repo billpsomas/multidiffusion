@@ -10,6 +10,7 @@ import torch.nn as nn
 import torchvision.transforms as T
 import argparse
 import numpy as np
+import datetime
 from PIL import Image
 
 
@@ -199,6 +200,7 @@ if __name__ == '__main__':
     parser.add_argument('--steps', type=int, default=50)
     # bootstrapping encourages high fidelity to tight masks, the value can be lowered in most cases
     parser.add_argument('--bootstrapping', type=int, default=20)
+    parser.add_argument('--output_path', default='outputs', type=str)
     opt = parser.parse_args()
 
     seed_everything(opt.seed)
@@ -221,4 +223,8 @@ if __name__ == '__main__':
     img = sd.generate(masks, prompts, neg_prompts, opt.H, opt.W, opt.steps, bootstrapping=opt.bootstrapping)
 
     # save image
-    img.save('out.png')
+    now = datetime.datetime.now()
+    timestamp = now.strftime('%Y%m%d-%H%M%S')
+    if not os.path.exists(opt.output_path):
+        os.makedirs(opt.output_path)
+    img.save(f'{opt.output_path}/{opt.masks_path.split("/")[-1]}_{timestamp}.png')
