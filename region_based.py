@@ -91,6 +91,15 @@ class MultiDiffusion(nn.Module):
         return text_embeddings
 
     @torch.no_grad()
+    def get_text_embeds_without_negatives(self, prompt):
+        # Tokenize text and get embeddings
+        text_input = self.tokenizer(prompt, padding='max_length', max_length=self.tokenizer.model_max_length,
+                                    truncation=True, return_tensors='pt')
+        text_embeddings = self.text_encoder(text_input.input_ids.to(self.device))[0]
+
+        return text_embeddings
+
+    @torch.no_grad()
     def encode_imgs(self, imgs):
         imgs = 2 * imgs - 1
         posterior = self.vae.encode(imgs).latent_dist
@@ -138,8 +147,7 @@ class MultiDiffusion(nn.Module):
                         latent_view[1:] = latent_view[1:] * masks_view[1:] + bg * (1 - masks_view[1:])
 
                     # expand the latents if we are doing classifier-free guidance to avoid doing two forward passes.
-                    #latent_model_input = torch.cat([latent_view] * 2)
-                    latent_model_input = torch.cat([latent_view])
+                    latent_model_input = torch.cat([latent_view] * 2)
 
                     # predict the noise residual
                     noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeds)['sample']
@@ -182,14 +190,14 @@ if __name__ == '__main__':
     parser.add_argument('--bg_prompt', type=str)
     parser.add_argument('--bg_negative', type=str)  # 'artifacts, blurry, smooth texture, bad quality, distortions, unrealistic, distorted image'
     parser.add_argument('--fg_prompts', nargs='+')
-    parser.add_argument('--fg_negative',nargs='+')  # 'artifacts, blurry, smooth texture, bad quality, distortions, unrealistic, distorted image'
+    parser.add_argument('--fg_negative', nargs='+')  # 'artifacts, blurry, smooth texture, bad quality, distortions, unrealistic, distorted image'
     parser.add_argument('--sd_version', type=str, default='2.0', choices=['1.5', '2.0'],
                         help="stable diffusion version")
     parser.add_argument('--H', type=int, default=512)
     parser.add_argument('--W', type=int, default=512)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--steps', type=int, default=50)
-    # bootstrapping encourages high fidelity to tight masks, the value can be lowered is most cases
+    # bootstrapping encourages high fidelity to tight masks, the value can be lowered in most cases
     parser.add_argument('--bootstrapping', type=int, default=20)
     opt = parser.parse_args()
 
@@ -207,10 +215,10 @@ if __name__ == '__main__':
     masks = torch.cat([bg_mask, fg_masks])
 
     prompts = [opt.bg_prompt] + opt.fg_prompts
-    #neg_prompts = [opt.bg_negative] + opt.fg_negative
+    neg_prompts = [opt.bg_negative] + opt.fg_negative
 
-    #img = sd.generate(masks, prompts, neg_prompts, opt.H, opt.W, opt.steps, bootstrapping=opt.bootstrapping)
-    img = sd.generate(masks, prompts, opt.H, opt.W, opt.steps, bootstrapping=opt.bootstrapping)
+    # Using negative prompts
+    img = sd.generate(masks, prompts, neg_prompts, opt.H, opt.W, opt.steps, bootstrapping=opt.bootstrapping)
 
     # save image
     img.save('out.png')
