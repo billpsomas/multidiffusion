@@ -1,6 +1,12 @@
 # MultiDiffusion: Fusing Diffusion Paths for Controlled Image Generation (ICML 2023)
 ## [<a href="https://multidiffusion.github.io/" target="_blank">Project Page</a>]
 
+For `bear` example, we are currently running this command:
+
+```python
+python3 region_based.py --masks_path /datagrid/personal/psomavas/code/MultiDiffusion/examples/bear --bg_prompt "table, couch and window" --fg_prompts bowl seashell panda --fg_negative artifacts artifacts artifacts --bg_negative artifacts --steps 20
+```
+
 [![arXiv](https://img.shields.io/badge/arXiv-MultiDiffusion-b31b1b.svg)](https://arxiv.org/abs/2302.08113)
 ![Pytorch](https://img.shields.io/badge/PyTorch->=1.10.0-Red?logo=pytorch)
 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/weizmannscience/MultiDiffusion)
