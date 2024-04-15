@@ -4,6 +4,7 @@ from diffusers import AutoencoderKL, UNet2DConditionModel, DDIMScheduler
 # suppress partial model loading warning
 logging.set_verbosity_error()
 
+import os
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
@@ -137,7 +138,8 @@ class MultiDiffusion(nn.Module):
                         latent_view[1:] = latent_view[1:] * masks_view[1:] + bg * (1 - masks_view[1:])
 
                     # expand the latents if we are doing classifier-free guidance to avoid doing two forward passes.
-                    latent_model_input = torch.cat([latent_view] * 2)
+                    #latent_model_input = torch.cat([latent_view] * 2)
+                    latent_model_input = torch.cat([latent_view])
 
                     # predict the noise residual
                     noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeds)['sample']
@@ -175,15 +177,15 @@ def preprocess_mask(mask_path, h, w, device):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mask_paths', type=list)
+    parser.add_argument('--masks_path', type=str)
     # important: it is necessary that SD output high-quality images for the bg/fg prompts.
     parser.add_argument('--bg_prompt', type=str)
     parser.add_argument('--bg_negative', type=str)  # 'artifacts, blurry, smooth texture, bad quality, distortions, unrealistic, distorted image'
-    parser.add_argument('--fg_prompts', type=list)
-    parser.add_argument('--fg_negative', type=list)  # 'artifacts, blurry, smooth texture, bad quality, distortions, unrealistic, distorted image'
+    parser.add_argument('--fg_prompts', nargs='+')
+    parser.add_argument('--fg_negative',nargs='+')  # 'artifacts, blurry, smooth texture, bad quality, distortions, unrealistic, distorted image'
     parser.add_argument('--sd_version', type=str, default='2.0', choices=['1.5', '2.0'],
                         help="stable diffusion version")
-    parser.add_argument('--H', type=int, default=768)
+    parser.add_argument('--H', type=int, default=512)
     parser.add_argument('--W', type=int, default=512)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--steps', type=int, default=50)
@@ -197,15 +199,18 @@ if __name__ == '__main__':
 
     sd = MultiDiffusion(device, opt.sd_version)
 
-    fg_masks = torch.cat([preprocess_mask(mask_path, opt.H // 8, opt.W // 8, device) for mask_path in opt.mask_paths])
+    masks_paths = [os.path.join(opt.masks_path, x) for x in os.listdir(opt.masks_path)]
+
+    fg_masks = torch.cat([preprocess_mask(mask_path, opt.H // 8, opt.W // 8, device) for mask_path in masks_paths])
     bg_mask = 1 - torch.sum(fg_masks, dim=0, keepdim=True)
     bg_mask[bg_mask < 0] = 0
     masks = torch.cat([bg_mask, fg_masks])
 
     prompts = [opt.bg_prompt] + opt.fg_prompts
-    neg_prompts = [opt.bg_negative] + opt.fg_negative
+    #neg_prompts = [opt.bg_negative] + opt.fg_negative
 
-    img = sd.generate(masks, prompts, neg_prompts, opt.H, opt.W, opt.steps, bootstrapping=opt.bootstrapping)
+    #img = sd.generate(masks, prompts, neg_prompts, opt.H, opt.W, opt.steps, bootstrapping=opt.bootstrapping)
+    img = sd.generate(masks, prompts, opt.H, opt.W, opt.steps, bootstrapping=opt.bootstrapping)
 
     # save image
     img.save('out.png')
